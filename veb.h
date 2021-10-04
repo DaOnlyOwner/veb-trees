@@ -23,13 +23,13 @@ namespace doo
 		{
 		public:
 			static_assert(log2_u > 0 && log2_u <= 63, "log2_u must be within [0,63]");
-			bool member(u64 x)
+			bool member(u64 x) const
 			{
 				if (x == min || x == max) return true; 
 				if (x < min || x > max) return false; // Not within range
 				u64 h = high(x);
 				u64 l = low(x);
-				make_subcluster(h);
+				if (cluster[h] == nullptr || cluster[h]->empty()) return false;
 				return cluster[h]->member(l); // Tail call recursion
 			}
 
@@ -70,42 +70,49 @@ namespace doo
 				else cluster[h]->insert(l);
 			}
 
-			u64 succ(u64 x) 
+			u64 succ(u64 x) const
 			{
 				if (is_not_null(min) && x < min) return min;
 				u64 h = high(x);
 				u64 l = low(x);
-				make_subcluster(h);
-				auto c_max = cluster[h]->max;
+				u64 c_max;
+				if (cluster[h] == nullptr)
+					c_max = nullop;
+				else c_max = cluster[h]->max;
 				if (is_not_null(c_max) && l < c_max)
 				{
 					u64 j = cluster[h]->succ(l);
 					return idx(h, j);
 				}
 
-				make_summary();
-				auto h_succ = summary->succ(h);
+				u64 h_succ;
+				if (summary == nullptr)
+					h_succ = nullop;
+				else h_succ = summary->succ(h);
 				if (is_null(h_succ)) return nullop;
 				u64 j = cluster[h_succ]->min;
 				return idx(h_succ, j);
 			}
 
-			u64 pred(u64 x)
+			u64 pred(u64 x) const
 			{
 				if (is_not_null(max) && x > max) return max;
 
 				u64 h = high(x);
 				u64 l = low(x);
-				make_subcluster(h);
-				auto c_min = cluster[h]->min;
+				u64 c_min;
+				if (cluster[h] == nullptr)
+					c_min = nullop;
+				else c_min = cluster[h]->min;
 				if (is_not_null(c_min) && l > c_min)
 				{
 					u64 j = cluster[h]->pred(l);
 					return idx(h, j);
 				}
-
-				make_summary();
-				auto h_pred = summary->pred(h);
+				u64 h_pred;
+				if (summary == nullptr)
+					h_pred = nullop;
+				else h_pred = summary->pred(h);
 				if (is_null(h_pred))
 				{
 					if (is_not_null(min) && x > min) return min;
@@ -169,9 +176,9 @@ namespace doo
 			std::unique_ptr<veb<half_log2_u_ceil,shrink_to_fit>> summary;
 			std::array<std::unique_ptr<veb<half_log2_u,shrink_to_fit>>, sqrt_u_ceil> cluster;
 
-			constexpr u64 high(u64 in) { return in >> half_log2_u; } // eg: 1101. u=4, halfU = 2. 1101 >> 2 == 0011 
-			constexpr u64 low(u64 in) { return in & lower_mask; }
-			constexpr u64 idx(u64 i, u64 j) { return (i<<half_log2_u) | j; }
+			constexpr u64 high(u64 in) const { return in >> half_log2_u; } // eg: 1101. u=4, halfU = 2. 1101 >> 2 == 0011 
+			constexpr u64 low(u64 in) const { return in & lower_mask; }
+			constexpr u64 idx(u64 i, u64 j) const { return (i<<half_log2_u) | j; }
 
 			void make_subcluster(u64 h)
 			{
@@ -204,7 +211,7 @@ namespace doo
 				bitvector &= ~pow_2(x);
 			}
 
-			u64 succ(u64 x)
+			u64 succ(u64 x) const
 			{
 				u64 shifted = bitvector >> (x + 1);
 				if (shifted == 0ULL)
@@ -212,7 +219,7 @@ namespace doo
 				return idx_lsb(shifted) + x + 1;
 			}
 
-			u64 pred(u64 x)
+			u64 pred(u64 x) const
 			{
 				// Cannot left shift due to arithmetic overflow which is undefined behavior.
 				
@@ -233,7 +240,7 @@ namespace doo
 				return bitvector == 0;
 			}
 
-			bool member(u64 key)
+			bool member(u64 key) const
 			{
 				return !!(bitvector & pow_2(key));
 			}
@@ -254,25 +261,25 @@ namespace doo
 
 			// Get the index of the least significant set bit.
 #ifdef __GNUC__
-			unsigned int idx_lsb(u64 k)
+			unsigned int idx_lsb(u64 k) const
 			{
 				return __builtin_ctzll(k);
 			}
 
-			unsigned int idx_msb(u64 k)
+			unsigned int idx_msb(u64 k) const
 			{
 				return 63-__builtin_clzll(k);
 			}
 
 #elif _MSC_VER
-			unsigned int idx_lsb(u64 k)
+			unsigned int idx_lsb(u64 k) const
 			{
 				unsigned long idx;
 				_BitScanForward64(&idx, k);
 				return idx;
 			}
 
-			unsigned int idx_msb(u64 k)
+			unsigned int idx_msb(u64 k) const
 			{
 				unsigned long idx;
 				_BitScanReverse64(&idx, k);
@@ -289,13 +296,13 @@ namespace doo
 	class veb
 	{
 	public:
-		std::optional<u64> get_min()
+		std::optional<u64> get_min() const
 		{
 			if (detail::is_null(container.min)) return {};
 			return container.min;
 		}
 
-		std::optional<u64> get_max()
+		std::optional<u64> get_max() const
 		{
 			if (detail::is_null(container.max)) return {};
 			return container.max;
@@ -306,19 +313,31 @@ namespace doo
 			container.insert(x);
 		}
 
+		void insert_if_not_exists(u64 x)
+		{
+			if (!container.member(x))
+				container.insert(x);
+		}
+
 		void del(u64 x)
 		{
 			container.del(x);
 		}
+			
+		void del_if_exists(u64 x)
+		{
+			if (container.member(x))
+				container.del(x);
+		}
 
-		std::optional<u64> succ(u64 x)
+		std::optional<u64> succ(u64 x) const
 		{
 			u64 s = container.succ(x);
 			if (detail::is_null(s)) return {};
 			return s;
 		}
 
-		std::optional<u64> pred(u64 x)
+		std::optional<u64> pred(u64 x) const
 		{
 			u64 s = container.pred(x);
 			if (detail::is_null(s)) return {};
@@ -343,7 +362,7 @@ namespace doo
 			return container.empty();
 		}
 
-		bool member(u64 x)
+		bool member(u64 x) const
 		{
 			return container.member(x);
 		}

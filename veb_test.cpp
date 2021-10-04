@@ -39,30 +39,42 @@ namespace
 
 }
 
-TEST_CASE("Bitarray")
+TEST_CASE("Insert & Delete")
 {
-	doo::veb<6> v;
-	v.insert(1); 
-	v.insert(0);
-	auto min0 = v.remove_min();
-	auto min1 = v.remove_min();
-	REQUIRE(min0.value() == 0);
-	REQUIRE(min1.value() == 1);
-}
-
-TEST_CASE("Insert and Delete")
-{
-	doo::veb<LOG2_U> v;
-	int end = 500000;
-	int start = 0;
-	auto to_insert = gen_permut(start, end);
-	insert(v, to_insert);
-
-	for (int i = start; i <= end; i++)
+	SECTION("Insert and Delete Min")
 	{
-		auto min = v.remove_min();
-		REQUIRE(min.has_value());
-		REQUIRE(min.value() == i);
+		doo::veb<LOG2_U> v;
+		int end = 500000;
+		int start = 0;
+		auto to_insert = gen_permut(start, end);
+		insert(v, to_insert);
+
+		for (int i = start; i <= end; i++)
+		{
+			auto min = v.remove_min();
+			REQUIRE(min.has_value());
+			REQUIRE(min.value() == i);
+		}
+	}
+
+	SECTION("Duplicate Insert")
+	{
+		doo::veb<LOG2_U> v;
+		v.insert_if_not_exists(0);
+		v.insert_if_not_exists(0);
+		v.insert_if_not_exists(2);
+		v.insert_if_not_exists(2);
+		v.insert_if_not_exists(1);
+		v.insert_if_not_exists(1);
+		REQUIRE(v.member(0));
+		REQUIRE(v.member(1));
+		REQUIRE(v.member(2));
+		v.del(0);
+		v.del(2);
+		v.del(1);
+		REQUIRE(!v.member(0));
+		REQUIRE(!v.member(1));
+		REQUIRE(!v.member(2));
 	}
 }
 
@@ -73,6 +85,7 @@ TEST_CASE("Delete")
 	auto to_insert = gen_permut(start, end);
 	insert(v, to_insert);
 	del(v, to_insert);
+	REQUIRE(v.empty());
 }
 
 
@@ -127,6 +140,7 @@ TEST_CASE("Predecessor")
 TEST_CASE("Member")
 {
 	doo::veb<LOG2_U> v;
+	REQUIRE(!v.member(0));
 	v.insert(10);
 	v.insert(3);
 	v.insert(2);
@@ -140,9 +154,16 @@ TEST_CASE("Member")
 	REQUIRE(!v.member(7));
 }
 
+
 TEST_CASE("Benchmark")
 {
 	auto ti = gen_permut(0, 500000);
+	BENCHMARK("Insert Performance")
+	{
+		doo::veb<LOG2_U> v;
+		insert(v, ti);
+	};
+
 	BENCHMARK("Insert & Delete Performance")
 	{
 		doo::veb<LOG2_U> v;
