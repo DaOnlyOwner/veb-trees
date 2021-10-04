@@ -217,11 +217,11 @@ namespace doo
 				// Cannot left shift due to arithmetic overflow which is undefined behavior.
 				
 				if (x == 0) return nullop;
+
 				/*
-				E.g. 01010. pred(3) == 1 -> 00001 << (4 - 3 + 1)) = 00100 - 1 = 00011 << 3 (the argument) == 11000 
-				-> ~11000 == 00111 == mask  
+				E.g. 01010. pred(3) == 1 -> 00001 << 3 == 01000 -> 01000 - 1 = 00111 
 				*/
-				u64 mask = ~(((1ULL << (63 - x + 1)) - 1) << x);
+				u64 mask = (1ULL << x) - 1;
 				uint64_t masked = bitvector & mask;
 				if (masked == 0ULL)
 					return nullop;

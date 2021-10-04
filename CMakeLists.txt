@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(drop_in_libs LANGUAGES CXX C)
+project(veb_trees LANGUAGES CXX C)
 
 function(stp tname)
     set_target_properties(${tname}
@@ -10,5 +10,5 @@ function(stp tname)
     )
 endfunction()
 
-add_executable(veb_test "veb_test.cpp" "veb.h")
-stp(veb_test)
+add_executable(veb_trees "veb_test.cpp" "veb.h")
+stp(veb_trees)
