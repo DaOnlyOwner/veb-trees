@@ -20,6 +20,7 @@ namespace
 		std::shuffle(out.begin(), out.end(), dre);
 		return out;
 	}
+
 	void insert(doo::veb<LOG2_U>& v, const std::vector<doo::u64>& to_insert)
 	{
 		for (doo::u64 key : to_insert)
@@ -36,7 +37,20 @@ namespace
 		}
 	}
 
+	std::vector<doo::u64> sort(doo::veb<LOG2_U>& v, const std::vector<doo::u64>& to_sort)
+	{
+		std::vector<doo::u64> sorted;
+		insert(v, to_sort);
+		auto temp = v.get_min();
 
+		while (temp.has_value())
+		{
+			sorted.push_back(temp.value());
+			temp = v.succ(temp.value());
+		}
+
+		return sorted;
+	}
 }
 
 TEST_CASE("Insert & Delete")
@@ -154,30 +168,49 @@ TEST_CASE("Member")
 	REQUIRE(!v.member(7));
 }
 
+TEST_CASE("Sorting")
+{
+	auto ti = gen_permut(0, 500000);
+
+	// sort the permutation for asserting that veb sort worked
+	std::vector<doo::u64> sorted = ti;
+	std::sort(sorted.begin(), sorted.end());
+	doo::veb<LOG2_U> v;
+	auto vebSorted = sort(v, ti);
+	REQUIRE(sorted.size() == vebSorted.size());
+	REQUIRE(sorted == vebSorted);
+}
 
 TEST_CASE("Benchmark")
 {
+	// generate a permultation of random ids for testing
 	auto ti = gen_permut(0, 500000);
+
+	// sort the permutation for asserting that veb sort worked
+	std::vector<doo::u64> sorted = ti;
+	std::sort(sorted.begin(), sorted.end());
+
 	BENCHMARK("Insert Performance")
 	{
 		doo::veb<LOG2_U> v;
+		REQUIRE(v.empty());
 		insert(v, ti);
+		REQUIRE(!v.empty());
 	};
 
 	BENCHMARK("Insert & Delete Performance")
 	{
 		doo::veb<LOG2_U> v;
+		REQUIRE(v.empty());
 		insert(v, ti);
+		REQUIRE(!v.empty());
 		del(v, ti);
+		REQUIRE(v.empty());
+	};
+
+	BENCHMARK("Sort Performance")
+	{
+		doo::veb<LOG2_U> v;
+		auto vebSorted = sort(v, ti);
 	};
 }
-
-
-
-
-
-
-
-
-
-
