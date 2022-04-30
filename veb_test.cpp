@@ -41,6 +41,7 @@ namespace
 	{
 		std::vector<doo::u64> sorted;
 		insert(v, to_sort);
+		sorted.reserve(to_sort.size());
 		auto temp = v.get_min();
 
 		while (temp.has_value())
